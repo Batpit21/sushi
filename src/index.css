@@ -1,0 +1,4 @@
+@import "tailwindcss";
+@theme {
+    /* Vos personnalisations iraient ici, mais pour l'instant, importons juste le moteur */
+}

@@ -1,0 +1,9 @@
+services:
+  sushi-app:
+    build: .
+    container_name: sushi-container
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data  # <--- IMPORTANT : on monte sur /app/data
+    restart: always

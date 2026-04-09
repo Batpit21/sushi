@@ -16,33 +16,32 @@ app.use(cors());
 app.use(express.json());
 
 // --- BASE DE DONNÉES ---
-// Rappel : avec Docker Compose, le volume est monté sur /app/data
 const db = new Database(path.join(__dirname, '../data/quantities.db'));
 
 // Création des tables
 db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                         name TEXT NOT NULL
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS columns (
-                                           id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                           name TEXT NOT NULL,
-                                           status TEXT CHECK(status IN ('open', 'locked')) NOT NULL DEFAULT 'open',
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        status TEXT CHECK(status IN ('open', 'locked')) NOT NULL DEFAULT 'open',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
+    );
 
     CREATE TABLE IF NOT EXISTS entries (
-                                           id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                           user_id INTEGER NOT NULL,
-                                           row_number TEXT NOT NULL,
-                                           column_id INTEGER NOT NULL,
-                                           quantity INTEGER NOT NULL DEFAULT 0,
-                                           UNIQUE(user_id, row_number, column_id),
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        row_number TEXT NOT NULL,
+        column_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 0,
+        UNIQUE(user_id, row_number, column_id),
         FOREIGN KEY(user_id) REFERENCES users(id),
         FOREIGN KEY(column_id) REFERENCES columns(id)
-        );
+    );
 `);
 
 // Initialisation
@@ -122,18 +121,14 @@ app.post('/api/admin/columns/action', (req, res) => {
 
 // --- SERVIR LE FRONTEND (PROD) ---
 const distPath = path.join(__dirname, '../dist');
-
-// Servir les fichiers statiques (js, css, images)
 app.use(express.static(distPath));
 
-// Route de fallback pour le Single Page Application (SPA)
-// Remplacement de /:splat* par * pour éviter l'erreur PathError
-app.get('*', (req, res) => {
-    // Si c'est une requête vers /api qui n'a pas été capturée plus haut
+// La nouvelle syntaxe pour capturer "tout le reste" dans les versions récentes
+// On utilise une RegEx explicite capture : (.*)
+app.get('/:any(.*)', (req, res) => {
     if (req.path.startsWith('/api')) {
         return res.status(404).json({ error: 'Not found' });
     }
-
     res.sendFile(path.join(distPath, 'index.html'));
 });
 

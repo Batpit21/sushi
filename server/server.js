@@ -124,9 +124,11 @@ app.post('/api/admin/columns/action', (req, res) => {
 const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath));
 
-// CORRECTION ICI : Utilisation de (.*) pour éviter l'erreur PathError
-app.get('(.*)', (req, res) => {
+// Utilise ':splat*' ou n'importe quel nom suivi d'une étoile
+app.get('/:splat*', (req, res) => {
+    // Si c'est une requête API qui n'existe pas, on ne renvoie pas l'index
     if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
+
     res.sendFile(path.join(distPath, 'index.html'));
 });
 

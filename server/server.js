@@ -123,13 +123,8 @@ app.post('/api/admin/columns/action', (req, res) => {
 const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath));
 
-/**
- * SOLUTION FINALE :
- * Dans path-to-regexp v8+, les jokers doivent être nommés et l'astérisque
- * signifie "zero ou plusieurs segments".
- * La syntaxe /:any* capture tout ce qui suit le slash racine.
- */
-app.get('/:any*', (req, res) => {
+
+app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api')) {
         return res.status(404).json({ error: 'Not found' });
     }

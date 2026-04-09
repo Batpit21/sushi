@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// --- CONFIGURATION CHEMINS (Pour Docker/Production) ---
+// --- CONFIGURATION CHEMINS ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -16,35 +16,36 @@ app.use(cors());
 app.use(express.json());
 
 // --- BASE DE DONNÉES ---
-// Le chemin pointe vers le dossier server pour la persistance Docker
+// Rappel : avec Docker Compose, le volume est monté sur /app/data
 const db = new Database(path.join(__dirname, '../data/quantities.db'));
+
 // Création des tables
 db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL
-  );
-  
-  CREATE TABLE IF NOT EXISTS columns (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    status TEXT CHECK(status IN ('open', 'locked')) NOT NULL DEFAULT 'open',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  
-  CREATE TABLE IF NOT EXISTS entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    row_number TEXT NOT NULL,
-    column_id INTEGER NOT NULL,
-    quantity INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(user_id, row_number, column_id),
-    FOREIGN KEY(user_id) REFERENCES users(id),
-    FOREIGN KEY(column_id) REFERENCES columns(id)
-  );
+    CREATE TABLE IF NOT EXISTS users (
+                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                         name TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS columns (
+                                           id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                           name TEXT NOT NULL,
+                                           status TEXT CHECK(status IN ('open', 'locked')) NOT NULL DEFAULT 'open',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+    CREATE TABLE IF NOT EXISTS entries (
+                                           id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                           user_id INTEGER NOT NULL,
+                                           row_number TEXT NOT NULL,
+                                           column_id INTEGER NOT NULL,
+                                           quantity INTEGER NOT NULL DEFAULT 0,
+                                           UNIQUE(user_id, row_number, column_id),
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(column_id) REFERENCES columns(id)
+        );
 `);
 
-// Initialisation : Colonne par défaut uniquement
+// Initialisation
 const initDb = () => {
     const colCount = db.prepare('SELECT COUNT(*) as count FROM columns').get();
     if (colCount.count === 0) {
@@ -55,7 +56,6 @@ initDb();
 
 // --- ROUTES API ---
 
-// Gestion des Utilisateurs
 app.get('/api/users', (req, res) => {
     const users = db.prepare('SELECT * FROM users').all();
     res.json(users);
@@ -69,13 +69,11 @@ app.post('/api/users', (req, res) => {
     res.json({ id: info.lastInsertRowid, name });
 });
 
-// Gestion des Colonnes
 app.get('/api/columns', (req, res) => {
     const columns = db.prepare('SELECT * FROM columns ORDER BY id ASC').all();
     res.json(columns);
 });
 
-// Gestion des Entrées (Saisie utilisateur)
 app.get('/api/user/:userId/entries', (req, res) => {
     const entries = db.prepare('SELECT * FROM entries WHERE user_id = ?').all(req.params.userId);
     res.json(entries);
@@ -83,33 +81,29 @@ app.get('/api/user/:userId/entries', (req, res) => {
 
 app.post('/api/entries', (req, res) => {
     const { user_id, row_number, column_id, quantity } = req.body;
-
     const column = db.prepare("SELECT status FROM columns WHERE id = ?").get(column_id);
     if (!column || column.status !== 'open') {
         return res.status(403).json({ error: 'Colonne verrouillée' });
     }
-
     const stmt = db.prepare(`
-        INSERT INTO entries (user_id, row_number, column_id, quantity) 
-        VALUES (?, ?, ?, ?) 
-        ON CONFLICT(user_id, row_number, column_id) 
+        INSERT INTO entries (user_id, row_number, column_id, quantity)
+        VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id, row_number, column_id) 
         DO UPDATE SET quantity = excluded.quantity
     `);
     stmt.run(user_id, row_number, column_id, quantity);
     res.json({ success: true });
 });
 
-// Vue Globale (Sommes agrégées)
 app.get('/api/admin/entries', (req, res) => {
     const data = db.prepare(`
-        SELECT row_number, column_id, SUM(quantity) as total_quantity 
-        FROM entries 
+        SELECT row_number, column_id, SUM(quantity) as total_quantity
+        FROM entries
         GROUP BY row_number, column_id
     `).all();
     res.json(data);
 });
 
-// Action : Verrouiller et Créer nouvelle colonne
 app.post('/api/admin/columns/action', (req, res) => {
     const openColumn = db.prepare("SELECT id, name FROM columns WHERE status = 'open' LIMIT 1").get();
     if (!openColumn) return res.status(400).json({ error: 'Pas de colonne active' });
@@ -127,18 +121,15 @@ app.post('/api/admin/columns/action', (req, res) => {
 });
 
 // --- SERVIR LE FRONTEND (PROD) ---
-// On suppose que le dossier "dist" est à la racine du projet
 const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath));
 
-// Pour toutes les autres routes (SPA), renvoyer index.html
-app.get('*', (req, res) => {
-    // Si c'est une requête API qui n'existe pas, on ne renvoie pas l'index
+// CORRECTION ICI : Utilisation de (.*) pour éviter l'erreur PathError
+app.get('(.*)', (req, res) => {
     if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
     res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// Lancement
 app.listen(port, () => {
     console.log(`🚀 Serveur prêt sur le port ${port}`);
 });

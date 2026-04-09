@@ -122,12 +122,17 @@ app.post('/api/admin/columns/action', (req, res) => {
 
 // --- SERVIR LE FRONTEND (PROD) ---
 const distPath = path.join(__dirname, '../dist');
+
+// Servir les fichiers statiques (js, css, images)
 app.use(express.static(distPath));
 
-// Utilise ':splat*' ou n'importe quel nom suivi d'une étoile
-app.get('/:splat*', (req, res) => {
-    // Si c'est une requête API qui n'existe pas, on ne renvoie pas l'index
-    if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
+// Route de fallback pour le Single Page Application (SPA)
+// Remplacement de /:splat* par * pour éviter l'erreur PathError
+app.get('*', (req, res) => {
+    // Si c'est une requête vers /api qui n'a pas été capturée plus haut
+    if (req.path.startsWith('/api')) {
+        return res.status(404).json({ error: 'Not found' });
+    }
 
     res.sendFile(path.join(distPath, 'index.html'));
 });

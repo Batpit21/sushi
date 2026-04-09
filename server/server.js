@@ -21,27 +21,27 @@ const db = new Database(path.join(__dirname, '../data/quantities.db'));
 // Création des tables
 db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL
+                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                         name TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS columns (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        status TEXT CHECK(status IN ('open', 'locked')) NOT NULL DEFAULT 'open',
+                                           id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                           name TEXT NOT NULL,
+                                           status TEXT CHECK(status IN ('open', 'locked')) NOT NULL DEFAULT 'open',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+        );
 
     CREATE TABLE IF NOT EXISTS entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        row_number TEXT NOT NULL,
-        column_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL DEFAULT 0,
-        UNIQUE(user_id, row_number, column_id),
+                                           id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                           user_id INTEGER NOT NULL,
+                                           row_number TEXT NOT NULL,
+                                           column_id INTEGER NOT NULL,
+                                           quantity INTEGER NOT NULL DEFAULT 0,
+                                           UNIQUE(user_id, row_number, column_id),
         FOREIGN KEY(user_id) REFERENCES users(id),
         FOREIGN KEY(column_id) REFERENCES columns(id)
-    );
+        );
 `);
 
 // Initialisation
@@ -123,9 +123,13 @@ app.post('/api/admin/columns/action', (req, res) => {
 const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath));
 
-// La nouvelle syntaxe pour capturer "tout le reste" dans les versions récentes
-// On utilise une RegEx explicite capture : (.*)
-app.get('/:any(.*)', (req, res) => {
+/**
+ * SOLUTION FINALE :
+ * Dans path-to-regexp v8+, les jokers doivent être nommés et l'astérisque
+ * signifie "zero ou plusieurs segments".
+ * La syntaxe /:any* capture tout ce qui suit le slash racine.
+ */
+app.get('/:any*', (req, res) => {
     if (req.path.startsWith('/api')) {
         return res.status(404).json({ error: 'Not found' });
     }

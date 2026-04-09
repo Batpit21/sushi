@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Unlock, PlusCircle, LayoutDashboard, User, UserPlus } from 'lucide-react';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = '/api';
 const ROWS = Array.from({ length: 70 }, (_, i) => String(i + 1).padStart(2, '0'));
 
 // --- COMPOSANT TABLEAU RÉUTILISABLE ---

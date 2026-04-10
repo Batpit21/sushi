@@ -7,3 +7,9 @@ services:
     volumes:
       - ./data:/app/data  # <--- IMPORTANT : on monte sur /app/data
     restart: always
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

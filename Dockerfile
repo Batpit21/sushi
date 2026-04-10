@@ -7,11 +7,8 @@ COPY . .
 RUN npm run build
 
 # --- ÉTAPE 2 : Runtime Backend ---
-FROM node:20-alpine
+FROM node:20-trixie-slim
 WORKDIR /app
-
-# Installation des outils de compilation pour better-sqlite3
-RUN apk add --no-cache python3 make g++
 
 # Installation des dépendances de prod uniquement
 COPY package*.json ./
